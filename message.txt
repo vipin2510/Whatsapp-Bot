@@ -1,0 +1,205 @@
+// const qrcode = require('qrcode-terminal');
+
+// const { Client, ChatTypes } = require('whatsapp-web.js');
+// const client = new Client();
+
+
+
+
+
+// client.on('ready', () => {
+//     console.log('Client is ready!');
+//     const number = "919399880247@c.us";
+//     // Your message.
+//    client.sendMessage(number, 'Hello, its turned on');
+// });
+
+// client.initialize();
+
+// client.on('message', message => {
+// 	console.log(message.body);
+//     console.log(message.from)
+//     //message.forward('919399880247@c.us')
+// });
+
+// //var abc;
+// client.on('message', message => {
+// 	if(message.body === 'start') {
+// 		 message.reply('Please enter the mobile to  message');
+//         // client.deleteProfilePicture();
+//         const chatId = `919399880247@c.us`;
+
+//         // Send the message.
+//         client.sendMessage(chatId, 'hi');
+//         // const chatId1 = `919399880247@c.us`;
+//         // client.sendMessage(chatId1, 'Hi Sexy');
+
+//         //console.log(abc)
+//         // const number = "9399880247";
+//         // // Your message.
+//         //  client.sendMessage(number, "Hi sexy");
+// 	}
+
+// });
+
+
+
+
+const { Client } = require('whatsapp-web.js');
+const qrcode = require('qrcode-terminal');
+const readline = require('readline');
+const fs = require('fs')
+
+const mysql = require('mysql');
+const axios = require('axios');
+const accountSid = 'AC11b8477760824169d34cc8ef5e939062';
+const authToken = '4d354010a936a500eb75c57133df7fef';
+const twilio = require('twilio')(accountSid, authToken);
+const client = new Client();
+client.on('qr', qr => {
+  qrcode.generate(qr, { small: true });
+});
+
+// Load models and weights
+// Promise.all([
+//   faceapi.nets.ssdMobilenetv1.loadFromDisk('./models'),
+//   faceapi.nets.faceLandmark68Net.loadFromDisk('./models'),
+//   faceapi.nets.faceRecognitionNet.loadFromDisk('./models')
+// ]).then(start);
+// start();
+// // Function to prompt user input
+// async function start() {
+//   // Create MySQL connection
+//   const connection = mysql.createConnection({
+//     host: 'localhost',
+//     user: 'root',
+//     password: 'inferno12@69',
+//     database: 'abcdef'
+//   });
+
+//   connection.connect((error) => {
+//     if (error) {
+//       console.error('Error connecting to MySQL:', error);
+//       return;
+//     }
+//     console.log('Connected to MySQL');
+//   });
+// }
+function prompt(question) {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
+
+
+
+  return new Promise((resolve) => {
+    rl.question(question, (answer) => {
+      rl.close();
+      resolve(answer);
+    });
+  });
+}
+
+// Function to send a message to a number
+async function sendMessageToNumber(number, message) {
+  const chat = await client.getChatById(number);
+  if (chat) {
+    chat.sendMessage(message);
+    console.log(`Message sent to ${number}`);
+  } else {
+    console.log(`No chat found for ${number}`);
+  }
+}
+
+// Event when the client is ready
+client.on('ready', () => {
+  console.log('Client is ready!');
+
+
+  // Prompt user to enter a number and a message
+  //   prompt('Enter the number: ').then((number) => {
+  //     prompt('Enter the message: ').then((message) => {
+  //       sendMessageToNumber(number, message);
+  //     });
+  //   });
+});
+
+// Event when a message is received
+client.on('message', (msg) => {
+  if (msg.body === 'start') {
+    // Start the conversation by prompting the user to enter a number and a message
+    client.sendMessage(msg.from, 'Enter the number:').then(() => {
+      client.once('message', (numberMsg) => {
+        const number = numberMsg.body + '@c.us';
+        client.sendMessage(msg.from, 'Enter the message:').then(() => {
+          client.once('message', (messageMsg) => {
+            const message = messageMsg.body;
+            sendMessageToNumber(number, message);
+          });
+        });
+      });
+    });
+  }
+});
+client.on('message', (msg) => {
+  if (msg.body == 'sms') {
+    client.sendMessage(msg.from, 'Enter body of the message').then(() => {
+      client.once('message', (messagebody) => {
+        var messagebody = messagebody.body;
+        twilio.messages
+          .create({
+            body: messagebody,
+            to: '+919926685773', // Text your number
+            from: '+15416528460', // From a valid Twilio number
+          })
+          .then((msg1) => console.log(msg1.sid));
+      })
+    })
+  }
+})
+
+// Event when the client is disconnected
+client.on('disconnected', (reason) => {
+  console.log(`Client disconnected: ${reason}`);
+});
+
+// client.on('message', async msg => {
+//   if (msg.hasMedia) {
+//     const media = await msg.downloadMedia();
+//     //fs.writeFile('term',media)
+//     // do something with the media data here
+//   }
+// });
+client.on('message', async (message) => {
+  try {
+    if (message.hasMedia && message.type === 'image') {
+      const mediaData = await message.downloadMedia();
+      const fileName = `DI_${Date.now()}.${mediaData.mimetype.split('/')[1]}`;
+      fs.writeFileSync(fileName, mediaData.data, 'base64');
+
+      console.log(`Image saved: ${fileName}`);
+
+      const formData = new FormData();
+      formData.append('fileName', fileName);
+
+      axios.post('http://localhost:8000/process_image', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      })
+        .then(response => {
+          console.log('File sent to Python program');
+        })
+        .catch(error => {
+          console.error('Error sending file:', error);
+        });
+    }
+  } catch (error) {
+    console.error('Error occurred while downloading the image:', error);
+  }
+});
+
+// Start the client
+client.initialize();
+
