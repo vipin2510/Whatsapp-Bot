@@ -12,14 +12,26 @@ import cv2
 import numpy as np
 import mysql.connector
 import base64
-
-app = Flask(__name__)
-app.debug = True
-# app.config['UPLOAD_FOLDER'] = 'uploads'
-# CORS(app)
+import face_recognition
+from retinaface import RetinaFace
 
 
-@app('/process_image', methods=['pOST'])
+def get_face_locations(image_path):
+    image = cv2.imread(image_path)
+    faces = RetinaFace.detect_faces(image)
+    face_locations = []
+    for face in faces.values():
+       x1, y1, x2, y2 = face['facial_area']
+       face_locations.append((y1, x2, y2, x1))  # Convert RetinaFace format to face_recognition format
+    return face_locations
+
+def get_face_encodings(image_path, face_locations):
+    image = face_recognition.load_image_file(image_path)
+    face_encodings = face_recognition.face_encodings(image, face_locations)
+    return face_encodings
+
+image_path='bod.jpg'
+
 def dbsearch():
     # connect to database
     mydb = mysql.connector.connect(
@@ -33,39 +45,31 @@ def dbsearch():
     rows = mycursor.fetchall()
     
     # Load the image into face_recognition librarys
-    face_image = face_recognition.load_image_file('DI_1690047254910.jpeg')
-
+    
         # Find faces in the image
-    face_locations = face_recognition.face_locations(face_image)
-    face_encodings = face_recognition.face_encodings(face_image, face_locations)
+    face_locations_image =get_face_locations(image_path)
+    face_encodings_image = get_face_encodings(image_path,face_locations_image)
+    face_encodings_image_array = np.array(face_encodings_image)
     known_encodings = []
-    if len(face_locations) > 0:
-            # Encode the first face found
-        
-        #print(type(face_encoding))   
+    
 
     
-     for row in rows:
+    for row in rows:
         # Compare the input face encoding with all known face encodings
-        encoding_base64 = row[0]
+        face_encoding = np.frombuffer(row[0], dtype=np.float64)
+        
+        
         known_encodings.append(face_encoding)
-        face_encoding = np.frombuffer(base64.b64decode(encoding_base64), dtype=np.float64)
-        known_encodings.append(face_encoding)
         
-    for input_face_encoding in face_encodings:
-    # Compare the input face encoding with all known face encodings
-        matches = face_recognition.compare_faces(known_encodings, input_face_encoding)
     
-    # Find the indexes of matching faces
-        matching_indexes = [i for i, match in enumerate(matches) if match]
-    
-        for matching_index in matching_indexes:
         
         
-            print("Matching face found at:")
+    results = face_recognition.compare_faces(known_encodings, face_encodings_image_array,tolerance=0.5)
 
+    print(results)
         
     mydb.commit()
     print('Record SEARCHED successfully')
     mycursor.close()
     mydb.close()
+dbsearch()

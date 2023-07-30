@@ -1,6 +1,6 @@
 import mysql.connector
 
-def process_video(X,Y,Z,a,b):
+def process_video(Y,Z,a,b):
     # connect to database
     mydb = mysql.connector.connect(
         host="localhost",
@@ -9,8 +9,9 @@ def process_video(X,Y,Z,a,b):
         database="TRACKFLIX"
     )
     mycursor = mydb.cursor()
-    query = "INSERT INTO CRIMINAL (UNIQE_ID,FACE_ENCODES,NAME,CRIME_HISTORY,ADITIONAL_INFO) VALUES (%s, %s, %s, %s, %s)"
-    values = (X,Y,Z,a,b)
+    query = "INSERT INTO CRIMINAL (FACE_ENCODES,NAME,CRIME,ADITIONAL_INFO) VALUES (%s, %s, %s, %s)"
+    
+    values = (Y,Z,a,b)
     mycursor.execute(query, values)
 
     mydb.commit()

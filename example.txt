@@ -1,0 +1,6 @@
+Name: dady
+Age: Enter your age: 
+Location: Enter your location: 
+Name: dady
+Age: Enter your age: 
+Location: Enter your location: 
